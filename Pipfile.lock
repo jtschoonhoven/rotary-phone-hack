@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "189126bd6811b494cb5855453e1c727ee1649f2c777b345e0da0ba87473d0935"
+            "sha256": "1b4e3295d3754b87ee883cc46b86551e92c08d590cff6bd42540bcf37de2a325"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.8.3"
+            "python_version": "3.7"
         },
         "sources": [
             {
@@ -15,7 +15,8 @@
             }
         ]
     },
-    "default": {
+    "default": {},
+    "develop": {
         "attrs": {
             "hashes": [
                 "sha256:26b54ddbbb9ee1d34d5d3668dd37d6cf74990ab23c828c2888dccdceee395594",
@@ -31,14 +32,6 @@
             ],
             "index": "pypi",
             "version": "==3.8.4"
-        },
-        "gpiosimulator": {
-            "hashes": [
-                "sha256:08a221d03c9c5bd137d573b24aa0ebb9871760b12b8a1090392cbded3d06fee8",
-                "sha256:e0043383324b6c984a256d6e56ca668b7f74571fa5602ee08013dd5a4c444314"
-            ],
-            "index": "pypi",
-            "version": "==0.1"
         },
         "iniconfig": {
             "hashes": [
@@ -217,16 +210,6 @@
                 "sha256:dafc7639cde7f1b6e1acc0f457842a83e722ccca8eef5270af2d74792619a89f"
             ],
             "version": "==3.7.4.3"
-        }
-    },
-    "develop": {
-        "gpiosimulator": {
-            "hashes": [
-                "sha256:08a221d03c9c5bd137d573b24aa0ebb9871760b12b8a1090392cbded3d06fee8",
-                "sha256:e0043383324b6c984a256d6e56ca668b7f74571fa5602ee08013dd5a4c444314"
-            ],
-            "index": "pypi",
-            "version": "==0.1"
         }
     }
 }

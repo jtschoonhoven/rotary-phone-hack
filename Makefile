@@ -8,3 +8,7 @@ sync:
 	--progress \
 	--delete \
 	./ pi@raspberrypi.local:/home/pi/rotary-phone-hack
+
+.PHONY: run
+run:
+	@PYGAME_HIDE_SUPPORT_PROMPT=1 python3 phonehack
