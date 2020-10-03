@@ -22,9 +22,11 @@ DEFAULT_GPIO_EVENT_DEBOUNCE_SECS = 0.8
 PIN_OUT_RINGER = 11
 PIN_IN_HANGAR = 13
 
-# Setup import paths for audio files
+# Declare paths
 MODULE_PATH = os.path.dirname(os.path.abspath(__file__))
 SOUNDS_PATH = os.path.join(MODULE_PATH, '..', 'sounds')
+
+# Declare audio file manifest
 SOUNDS_MANIFESET: Dict[str, str] = {
     'APPLAUSE': os.path.join(SOUNDS_PATH, 'applause.wav'),
 }
@@ -70,8 +72,8 @@ def get_gpio_event_detector(
     async def _event_detector() -> int:
         """Poll async until an event is detected"""
         debounce_timer_secs: float = 0
-
         log.debug(f'Pin {pin} awaiting event {event}')
+
         while True:
             # Poll async for events: sleep until GPIO pin is in target state
             if GPIO.input(pin) != event:
@@ -81,7 +83,9 @@ def get_gpio_event_detector(
 
             # If pin is in desired state, keep polling until debounce timer is met
             if debounce_timer_secs < debounce_secs:
-                log.debug(f'Pin {pin} matched state {event} debouncing for {debounce_secs}s')
+                log.debug(
+                    f'Pin {pin} matched state {event} for {debounce_timer_secs} of {debounce_secs}s'
+                )
                 debounce_timer_secs += poll_interval_secs
                 continue
 
@@ -125,7 +129,7 @@ async def setup() -> None:
 
 
 async def ring_until_answered() -> None:
-    # is_answered = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.FALLING)
+    # is_answered = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.LOW)
     pass
 
 
@@ -133,7 +137,7 @@ async def main() -> None:
     await setup()
 
     # Wait for phone to be placed in the hangar before proceeding
-    is_in_hangar = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.RISING)
+    is_in_hangar = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.HIGH)
     await is_in_hangar()
 
 try:
