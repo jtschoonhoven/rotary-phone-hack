@@ -13,10 +13,11 @@ logging.root.setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 # Declare timeouts and intervals
-SLEEP_SECS = 1
 DEFAULT_SHELL_CMD_TIMEOUT_SECS = 5
 DEFAULT_GPIO_EVENT_POLL_SECS = 0.2
 DEFAULT_GPIO_EVENT_DEBOUNCE_SECS = 0.8
+RING_TOGGLE_INTERVAL_SECS = 0.05
+RING_DURATION_SECS = 1.6
 
 # Declare GPIO pins
 PIN_OUT_RINGER = 11
@@ -108,12 +109,12 @@ async def setup() -> None:
     GPIO.setmode(GPIO.BOARD)
 
     # Prepare GPIO pins
-    log.info('Preparing GPIO pins')
+    log.debug('Preparing GPIO pins')
     GPIO.setup(PIN_OUT_RINGER, GPIO.OUT, initial=GPIO.LOW)
     GPIO.setup(PIN_IN_HANGAR, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
     # Initialize pygame mixer
-    log.info('Initializing Python audio mixer')
+    log.debug('Initializing Python audio mixer')
     mixer.init()
 
     # Load sounds
@@ -122,15 +123,51 @@ async def setup() -> None:
         SOUNDS[key] = mixer.Sound(SOUNDS_MANIFESET[key])
 
     # Unmute RPI at system level
-    log.info('Unmuting RPI')
+    log.debug('Unmuting RPI')
     await async_cmd('amixer set Headphone unmute')
-    log.info('Setting RPI system volume 100%')
+    log.debug('Setting RPI system volume 100%')
     await async_cmd('amixer set Headphone 100%')
 
 
+async def ring_once() -> None:
+    """
+    Rapidly toggle ringer output channel for RING_DURATION_SECS.
+    """
+    ring_timer_secs: float = 0
+
+    log.debug('Ring! Ring!')
+    while ring_timer_secs < RING_DURATION_SECS:
+        for v in (GPIO.HIGH, GPIO.LOW):
+            GPIO.output(PIN_OUT_RINGER, v)
+            ring_timer_secs += RING_TOGGLE_INTERVAL_SECS
+            await asyncio.sleep(RING_TOGGLE_INTERVAL_SECS)
+
+
+async def ring_forever() -> None:
+    """
+    Ring the phone forever. Wrap in a task and use cancel() to stop ringer.
+    """
+    while True:
+        await ring_once()
+        await asyncio.sleep(RING_DURATION_SECS)
+
+
 async def ring_until_answered() -> None:
-    # is_answered = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.LOW)
-    pass
+    """
+    Ring forever until phone is removed from hook.
+    """
+    log.debug('Ringing...')
+    ring_forever_task = asyncio.create_task(ring_forever())
+
+    def on_phone_answered(_: asyncio.Future) -> None:
+        log.debug('Stopping ringer...')
+        ring_forever_task.cancel()
+
+    is_answered = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.LOW)
+    is_answered_task = asyncio.create_task(is_answered())
+    is_answered_task.add_done_callback(on_phone_answered)
+    await is_answered_task
+    log.info('Phone answered')
 
 
 async def main() -> None:
@@ -140,8 +177,14 @@ async def main() -> None:
     is_in_hangar = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.HIGH)
     await is_in_hangar()
 
-try:
-    asyncio.run(main())
-except KeyboardInterrupt:
-    print('Cleaning up before exit...')
-    GPIO.cleanup()
+    # Ring while phone is on the hanger
+    await ring_until_answered()
+
+
+if __name__ == '__main__':
+    try:
+        log.debug('Starting event loop')
+        asyncio.run(main())
+    finally:
+        log.info('Cleaning up GPIO state before exit')
+        GPIO.cleanup()
