@@ -7,7 +7,6 @@ verify_ssl = true
 mypy = "*"
 flake8 = "*"
 pytest = "*"
-pygame = "*"
 
 [packages]
 

@@ -1,7 +1,6 @@
 import os
 import logging
 import asyncio
-import pygame
 import RPi.GPIO as GPIO
 from typing import Any, Callable, Coroutine, Dict
 from pygame import mixer
