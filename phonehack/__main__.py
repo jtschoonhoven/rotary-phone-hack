@@ -73,7 +73,8 @@ def get_gpio_event_detector(
     async def _event_detector() -> int:
         """Poll async until an event is detected"""
         debounce_timer_secs: float = 0
-        log.debug(f'Pin {pin} awaiting event {event}')
+        event_name = 'HIGH' if event else 'LOW'
+        log.debug(f'Pin {pin} awaiting event {event_name}')
 
         while True:
             # Poll async for events: sleep until GPIO pin is in target state
@@ -85,18 +86,18 @@ def get_gpio_event_detector(
             # If pin is in desired state, keep polling until debounce timer is met
             if debounce_timer_secs < debounce_secs:
                 log.debug(
-                    f'Pin {pin} matched state {event} for {debounce_timer_secs} of {debounce_secs}s'
+                    f'Pin {pin} matched state {event_name} for {debounce_timer_secs} of {debounce_secs}s'
                 )
                 debounce_timer_secs += poll_interval_secs
                 continue
 
             # Stop listening if this event detector is not reusable
             if not reusable:
-                log.debug(f'Pin {pin} removing detector for event {event}')
+                log.debug(f'Pin {pin} removing detector for event {event_name}')
                 GPIO.remove_event_detect(pin)
 
             # Return the pin state, 0 (low) or 1 (high)
-            log.debug(f'Pin {pin} in state {event}')
+            log.debug(f'Pin {pin} in state {event_name}')
             return event
     return _event_detector
 
@@ -163,7 +164,7 @@ async def ring_until_answered() -> None:
         log.debug('Stopping ringer...')
         ring_forever_task.cancel()
 
-    is_answered = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.LOW)
+    is_answered = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.HIGH)
     is_answered_task = asyncio.create_task(is_answered())
     is_answered_task.add_done_callback(on_phone_answered)
     await is_answered_task
@@ -171,10 +172,12 @@ async def ring_until_answered() -> None:
 
 
 async def main() -> None:
+    log.info('Initializing')
     await setup()
 
     # Wait for phone to be placed in the hangar before proceeding
-    is_in_hangar = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.HIGH)
+    is_in_hangar = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.LOW)
+    log.info('Waiting for phone in hangar')
     await is_in_hangar()
 
     # Ring while phone is on the hanger
