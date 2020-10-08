@@ -31,7 +31,12 @@ SOUNDS_PATH = os.path.join(MODULE_PATH, '..', 'sounds')
 SOUNDS_MANIFESET: Dict[str, str] = {
     'APPLAUSE': os.path.join(SOUNDS_PATH, 'applause.wav'),
 }
-SOUNDS: Dict[str, pygame.mixer.Sound] = {}  # Populated from manifest during setup
+
+# Declare valid audio outputs, "local" is the builtin 1/8" jack
+AUDIO_OUTPUT_HDMI = 'hdmi'
+AUDIO_OUTPUT_LOCAL = 'local'
+AUDIO_OUTPUT_ALL = 'both'
+AUDIO_OUTPUTS = frozenset([AUDIO_OUTPUT_HDMI, AUDIO_OUTPUT_LOCAL, AUDIO_OUTPUT_ALL])
 
 
 async def async_cmd(cmd: str, timeout_secs: float = DEFAULT_SHELL_CMD_TIMEOUT_SECS) -> None:
@@ -58,6 +63,16 @@ async def async_cmd(cmd: str, timeout_secs: float = DEFAULT_SHELL_CMD_TIMEOUT_SE
         )
     output = stdout.decode('utf8')
     log.debug(f'Shell command "{cmd}" successful with stdout:\n{output}')
+
+
+def play_audio_file(filepath: str, output: str = AUDIO_OUTPUT_LOCAL) -> Callable[[], Coroutine[Any, Any, None]]:
+    """
+    Play an audio file from disk using omxplayer.
+    """
+    log.debug(f'Playing audio file at path "{filepath}" to output "{output}"')
+    if output not in AUDIO_OUTPUTS:
+        raise Exception(f'Audio output "{output}" invalid: must be one of {AUDIO_OUTPUTS}')
+    return async_cmd(f'omxplayer -o {output} "{filepath}"')
 
 
 def get_gpio_event_detector(
@@ -103,8 +118,6 @@ def get_gpio_event_detector(
 
 
 async def setup() -> None:
-    global SOUNDS
-
     # Use GPIO.BOARD mode for better portability
     # See https://sourceforge.net/p/raspberry-gpio-python/wiki/BasicUsage/
     GPIO.setmode(GPIO.BOARD)
@@ -117,11 +130,6 @@ async def setup() -> None:
     # Initialize pygame mixer
     log.debug('Initializing Python audio mixer')
     mixer.init()
-
-    # Load sounds
-    for key in SOUNDS_MANIFESET.keys():
-        log.info(f'Loading sound file "{SOUNDS_MANIFESET[key]}"')
-        SOUNDS[key] = mixer.Sound(SOUNDS_MANIFESET[key])
 
     # Unmute RPI at system level
     log.debug('Unmuting RPI')
@@ -175,13 +183,18 @@ async def main() -> None:
     log.info('Initializing')
     await setup()
 
-    # Wait for phone to be placed in the hangar before proceeding
     is_in_hangar = get_gpio_event_detector(PIN_IN_HANGAR, GPIO.LOW)
-    log.info('Waiting for phone in hangar')
-    await is_in_hangar()
 
-    # Ring while phone is on the hanger
-    await ring_until_answered()
+    log.info('Starting loop')
+    while True:
+        log.info('Waiting for phone in hangar')
+        await is_in_hangar()
+
+        # Ring while phone is on the hanger
+        await ring_until_answered()
+
+        log.info('Starting audio playback')
+        await play_audio_file(SOUNDS_MANIFESET['APPLAUSE'])
 
 
 if __name__ == '__main__':
